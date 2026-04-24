@@ -1,100 +1,77 @@
 #include <iostream>
-#include <cmath>
 
-class Vector
-{
+class MyStore {
 public:
-	Vector()
-	{
-		x = 0; y = 0; z = 0;
-	}
+    int** data;
+    int rows, cols;
+    int* id;
+    double* scale;
 
-	Vector(float x, float y, float z)
-	{
-		this->x = x;
-		this->y = y;
-		this->z = z;
-	}
+    MyStore(int r, int c, int val, double s) {
+        rows = r;
+        cols = c;
+        data = new int* [rows];
+        for (int i = 0; i < rows; i++) {
+            data[i] = new int[cols];
+            for (int j = 0; j < cols; j++) {
+                data[i][j] = 0;
+            }
+        }
+        id = new int(val);
+        scale = new double(s);
+    }
 
-	operator float() const
-	{
-		return sqrt(x * x + y * y + z * z);
-	}
+    MyStore(const MyStore& other) {
+        rows = other.rows;
+        cols = other.cols;
+        data = new int* [rows];
+        for (int i = 0; i < rows; i++) {
+            data[i] = new int[cols];
+            for (int j = 0; j < cols; j++) {
+                data[i][j] = other.data[i][j];
+            }
+        }
+        id = new int(*other.id);
+        scale = new double(*other.scale);
+    }
 
-	
-	friend Vector operator+(const Vector& a, const Vector& b);
-	friend Vector operator-(const Vector& a, const Vector& b); 
-	friend Vector operator*(const Vector& v, float n);         
+    ~MyStore() {
+        for (int i = 0; i < rows; i++) {
+            delete[] data[i];
+        }
+        delete[] data;
+        delete id;
+        delete scale;
+    }
 
-	friend std::ostream& operator<<(std::ostream& out, const Vector& v);
-	friend std::istream& operator>>(std::istream& in, Vector& v); 
-
-	friend bool operator>(const Vector& a, const Vector& b);
-
-	float operator[](int index) const
-	{
-		if (index == 0) return x;
-		if (index == 1) return y;
-		if (index == 2) return z;
-		return 0;
-	}
-
-private:
-	float x, y, z;
+    void print() {
+        std::cout << "ID: " << *id << " | Scale: " << *scale << std::endl;
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                std::cout << data[i][j] << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
 };
 
+int main() {
+    int r, c;
+    std::cin >> r >> c;
 
-Vector operator+(const Vector& a, const Vector& b)
-{
-	return Vector(a.x + b.x, a.y + b.y, a.z + b.z);
-}
+    MyStore obj1(r, c, 100, 1.5);
+    obj1.data[0][0] = 77;
 
-Vector operator-(const Vector& a, const Vector& b)
-{
-	return Vector(a.x - b.x, a.y - b.y, a.z - b.z);
-}
+    MyStore obj2 = obj1;
 
-Vector operator*(const Vector& v, float n)
-{
-	return Vector(v.x * n, v.y * n, v.z * n);
-}
+    obj1.data[0][0] = 999;
+    *obj1.id = 555;
 
-std::ostream& operator<<(std::ostream& out, const Vector& v)
-{
-	out << "(" << v.x << ", " << v.y << ", " << v.z << ")";
-	return out;
-}
+    std::cout << "Object 1:" << std::endl;
+    obj1.print();
 
-std::istream& operator>>(std::istream& in, Vector& v)
-{
-	in >> v.x >> v.y >> v.z;
-	return in;
-}
+    std::cout << "Object 2:" << std::endl;
+    obj2.print();
 
-bool operator>(const Vector& a, const Vector& b)
-{
-	return static_cast<float>(a) > static_cast<float>(b);
-}
-
-int main()
-{
-	Vector v1, v2;
-
-	
-	std::cin >> v1 >> v2;
-
-	// Тестирование и вывод
-	std::cout << "V1: " << v1 << "\n";
-	std::cout << "V2: " << v2 << "\n";
-	std::cout << "Sum: " << v1 + v2 << "\n";
-	std::cout << "Diff: " << v1 - v2 << "\n";
-	std::cout << "Mult (V1 * 10): " << v1 * 10.0f << "\n";
-	std::cout << "Length V1: " << static_cast<float>(v1) << "\n";
-
-	if (v1 > v2)
-		std::cout << "V1 is longer than V2" << "\n";
-	else
-		std::cout << "V1 is not longer than V2" << "\n";
-
-	return 0;
+    return 0;
 }
