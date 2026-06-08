@@ -1,33 +1,96 @@
 #include <iostream>
-#include <stdexcept>
+#include <vector>
+#include <string>
 
-class Fraction {
+class MinecraftSave {
 private:
-    int numerator;
-    int denominator;
-
+    static MinecraftSave* instance;
+    std::string dim;
+    MinecraftSave() : dim("Overworld") {}
 public:
-    Fraction(int n, int d) : numerator(n), denominator(d) {
-        if (d == 0) {
-            throw std::runtime_error("Denominator cannot be zero");
+    static MinecraftSave* getInstance() {
+        if (!instance) instance = new MinecraftSave();
+        return instance;
+    }
+    void setDim(std::string d) { dim = d; }
+    void printDim() { std::cout << dim << std::endl; }
+};
+MinecraftSave* MinecraftSave::instance = nullptr;
+
+class Mob {
+public:
+    virtual Mob* clone() = 0;
+    virtual void spawn() = 0;
+    virtual ~Mob() {}
+};
+
+class Zombie : public Mob {
+public:
+    Mob* clone() override { return new Zombie(*this); }
+    void spawn() override { std::cout << "Zombie spawned" << std::endl; }
+};
+
+class VillageStructure {
+public:
+    std::vector<std::string> parts;
+    void show() {
+        for (size_t i = 0; i < parts.size(); ++i) {
+            std::cout << parts[i] << (i == parts.size() - 1 ? "" : " ");
         }
+        std::cout << std::endl;
     }
 };
 
-int main() {
-    int n, d;
+class VillageBuilder {
+private:
+    VillageStructure* s;
+public:
+    VillageBuilder() { s = new VillageStructure(); }
+    void addWalls() { s->parts.push_back("StoneWalls"); }
+    void addWorkstation() { s->parts.push_back("BrewingStand"); }
+    VillageStructure* getResult() { return s; }
+};
 
-    try {
-        if (!(std::cin >> n >> d)) {
-            throw std::runtime_error("Invalid input");
-        }
+class Block { public: virtual void place() = 0; };
+class BiomeMob { public: virtual void action() = 0; };
 
-        Fraction f(n, d);
-        std::cout << "Fraction created" << std::endl;
-    }
-    catch (const std::exception& e) {
-        std::cout << "Incorrect data" << std::endl;
-    }
+                       class Sand : public Block { void place() override { std::cout << "Sand Block" << std::endl; } };
+                       class Husk : public BiomeMob { void action() override { std::cout << "Husk Growl" << std::endl; } };
 
-    return 0;
-}
+                       class BiomeFactory {
+                       public:
+                           virtual Block* createBlock() = 0;
+                           virtual BiomeMob* createMob() = 0;
+                       };
+
+                       class DesertFactory : public BiomeFactory {
+                       public:
+                           Block* createBlock() override { return new Sand(); }
+                           BiomeMob* createMob() override { return new Husk(); }
+                       };
+
+                       int main() {
+                           MinecraftSave* save = MinecraftSave::getInstance();
+                           save->printDim();
+
+                           save->setDim("Nether");
+
+                           Zombie proto;
+                           Mob* z = proto.clone();
+                           z->spawn();
+
+                           VillageBuilder builder;
+                           builder.addWalls();
+                           builder.addWorkstation();
+                           VillageStructure* house = builder.getResult();
+                           house->show();
+
+                           BiomeFactory* factory = new DesertFactory();
+                           Block* b = factory->createBlock();
+                           BiomeMob* m = factory->createMob();
+                           b->place();
+                           m->action();
+
+                           delete z; delete house; delete b; delete m; delete factory;
+                           return 0;
+                       }
