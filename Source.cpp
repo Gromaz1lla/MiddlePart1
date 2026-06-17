@@ -1,96 +1,172 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <map>
 
-class MinecraftSave {
+// pattern Adapter
+class OldRedstoneSystem {
+public:
+    int getSignal() { return 15; }
+};
+
+class NewPowerSystem {
+public:
+    virtual double getVoltage() = 0;
+};
+
+class RedstoneAdapter : public NewPowerSystem {
 private:
-    static MinecraftSave* instance;
-    std::string dim;
-    MinecraftSave() : dim("Overworld") {}
+    OldRedstoneSystem* oldSystem;
 public:
-    static MinecraftSave* getInstance() {
-        if (!instance) instance = new MinecraftSave();
-        return instance;
-    }
-    void setDim(std::string d) { dim = d; }
-    void printDim() { std::cout << dim << std::endl; }
-};
-MinecraftSave* MinecraftSave::instance = nullptr;
-
-class Mob {
-public:
-    virtual Mob* clone() = 0;
-    virtual void spawn() = 0;
-    virtual ~Mob() {}
+    RedstoneAdapter(OldRedstoneSystem* s) : oldSystem(s) {}
+    double getVoltage() override { return (double)oldSystem->getSignal() * 0.8; }
 };
 
-class Zombie : public Mob {
+// pattern Facade
+class FuelSystem {
 public:
-    Mob* clone() override { return new Zombie(*this); }
-    void spawn() override { std::cout << "Zombie spawned" << std::endl; }
+    bool hasCoal() { return true; }
 };
 
-class VillageStructure {
+class TemperatureSystem {
 public:
-    std::vector<std::string> parts;
-    void show() {
-        for (size_t i = 0; i < parts.size(); ++i) {
-            std::cout << parts[i] << (i == parts.size() - 1 ? "" : " ");
+    void heatUp() { std::cout << "Furnace is hot" << std::endl; }
+};
+
+class FurnaceFacade {
+private:
+    FuelSystem fuel;
+    TemperatureSystem temp;
+public:
+    void smelt() {
+        if (fuel.hasCoal()) {
+            temp.heatUp();
+            std::cout << "Item smelted" << std::endl;
         }
-        std::cout << std::endl;
     }
 };
 
-class VillageBuilder {
-private:
-    VillageStructure* s;
+// pattern Proxy
+class IChest {
 public:
-    VillageBuilder() { s = new VillageStructure(); }
-    void addWalls() { s->parts.push_back("StoneWalls"); }
-    void addWorkstation() { s->parts.push_back("BrewingStand"); }
-    VillageStructure* getResult() { return s; }
+    virtual void open() = 0;
 };
 
-class Block { public: virtual void place() = 0; };
-class BiomeMob { public: virtual void action() = 0; };
+class RealChest : public IChest {
+public:
+    void open() override { std::cout << "Chest opened" << std::endl; }
+};
 
-                       class Sand : public Block { void place() override { std::cout << "Sand Block" << std::endl; } };
-                       class Husk : public BiomeMob { void action() override { std::cout << "Husk Growl" << std::endl; } };
+class ChestProxy : public IChest {
+private:
+    RealChest* chest;
+    bool isOp;
+public:
+    ChestProxy(bool op) : isOp(op) { chest = new RealChest(); }
+    void open() override {
+        if (isOp) chest->open();
+        else std::cout << "Access denied" << std::endl;
+    }
+    ~ChestProxy() { delete chest; }
+};
 
-                       class BiomeFactory {
-                       public:
-                           virtual Block* createBlock() = 0;
-                           virtual BiomeMob* createMob() = 0;
-                       };
+// pattern Composite
+class WorldObject {
+public:
+    virtual void render() = 0;
+};
 
-                       class DesertFactory : public BiomeFactory {
-                       public:
-                           Block* createBlock() override { return new Sand(); }
-                           BiomeMob* createMob() override { return new Husk(); }
-                       };
+class Block : public WorldObject {
+private:
+    std::string name;
+public:
+    Block(std::string n) : name(n) {}
+    void render() override { std::cout << name << " "; }
+};
 
-                       int main() {
-                           MinecraftSave* save = MinecraftSave::getInstance();
-                           save->printDim();
+class Structure : public WorldObject {
+private:
+    std::vector<WorldObject*> objects;
+public:
+    void add(WorldObject* obj) { objects.push_back(obj); }
+    void render() override {
+        for (auto obj : objects) obj->render();
+    }
+};
 
-                           save->setDim("Nether");
+// pattern Bridge
+class Material {
+public:
+    virtual std::string getProp() = 0;
+};
 
-                           Zombie proto;
-                           Mob* z = proto.clone();
-                           z->spawn();
+class Diamond : public Material {
+    std::string getProp() override { return "Diamond"; }
+};
 
-                           VillageBuilder builder;
-                           builder.addWalls();
-                           builder.addWorkstation();
-                           VillageStructure* house = builder.getResult();
-                           house->show();
+class Tool {
+protected:
+    Material* mat;
+public:
+    Tool(Material* m) : mat(m) {}
+    virtual void info() = 0;
+};
 
-                           BiomeFactory* factory = new DesertFactory();
-                           Block* b = factory->createBlock();
-                           BiomeMob* m = factory->createMob();
-                           b->place();
-                           m->action();
+class Pickaxe : public Tool {
+public:
+    Pickaxe(Material* m) : Tool(m) {}
+    void info() override { std::cout << mat->getProp() << " Pickaxe" << std::endl; }
+};
 
-                           delete z; delete house; delete b; delete m; delete factory;
-                           return 0;
-                       }
+// pattern Flyweight
+class BlockType {
+public:
+    std::string texture;
+    BlockType(std::string t) : texture(t) {}
+};
+
+class BlockFactory {
+private:
+    std::map<std::string, BlockType*> types;
+public:
+    BlockType* getType(std::string t) {
+        if (types.find(t) == types.end()) types[t] = new BlockType(t);
+        return types[t];
+    }
+};
+
+int main() {
+    // Adapter
+    OldRedstoneSystem oldS;
+    RedstoneAdapter adapter(&oldS);
+    std::cout << "Voltage: " << adapter.getVoltage() << std::endl;
+
+    // Facade
+    FurnaceFacade furnace;
+    furnace.smelt();
+
+    // Proxy
+    ChestProxy badProxy(false);
+    badProxy.open();
+    ChestProxy goodProxy(true);
+    goodProxy.open();
+
+    // Composite
+    Structure house;
+    house.add(new Block("Wall"));
+    house.add(new Block("Door"));
+    house.render();
+    std::cout << std::endl;
+
+    // Bridge
+    Diamond dia;
+    Pickaxe pick(&dia);
+    pick.info();
+
+    // Flyweight
+    BlockFactory factory;
+    BlockType* t1 = factory.getType("GrassTexture");
+    std::cout << "Texture: " << t1->texture << std::endl;
+
+    return 0;
+}
