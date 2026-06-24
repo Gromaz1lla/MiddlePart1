@@ -3,9 +3,9 @@
 #include <string>
 #include <algorithm>
 
-// 1. КОМАНДА (Command) 
-// Суть: позволяет превратить действие (например, установку блока) в объект.
-// Это нужно для реализации системы отмены действий (undo).
+// 1. Command
+// Concept: allows turning an action (e.g., placing a block) into an object.
+// This is necessary for implementing an undo system.
 class Command {
 public:
     virtual ~Command() {}
@@ -21,9 +21,9 @@ public:
     void undo() override { std::cout << "Block " << blockType << " removed (Undo).\n"; }
 };
 
-// 2. СОСТОЯНИЕ (State) 
-// Суть: позволяет объекту менять свое поведение в зависимости от внутреннего состояния.
-// В Minecraft это режимы игры (выживание, творческий).
+// 2. STATE
+// Concept: allows an object to change its behavior based on its internal state.
+// In Minecraft, these are game modes (Survival, Creative).
 class GameMode;
 class Player {
     GameMode* state;
@@ -55,9 +55,9 @@ Player::Player(GameMode* s) : state(s) {}
 void Player::setMode(GameMode* s) { state = s; }
 void Player::handleAction() { state->doAction(this); }
 
-// 3. НАБЛЮДАТЕЛЬ (Observer) 
-// Суть: один объект (субъект) уведомляет другие объекты (наблюдатели) об изменениях.
-// В Minecraft это система достижений: когда игрок что-то делает, менеджер достижений об этом узнает.
+// 3. OBSERVER
+// Concept: one object (the subject) notifies other objects (observers) of changes.
+// In Minecraft, this is the achievement system: when a player performs an action, the achievement manager is notified.
 class Observer {
 public:
     virtual void update(std::string action) = 0;
@@ -79,9 +79,9 @@ public:
     }
 };
 
-// 4. ПОСЕТИТЕЛЬ (Visitor) 
-// Суть: позволяет добавлять новые операции к классам, не меняя их код.
-// Например, игрок (посетитель) взаимодействует с разными блоками.
+// 4. VISITOR
+// Concept: allows adding new operations to classes without modifying their code.
+// Example: a player (visitor) interacts with various blocks.
 class Stone;
 class Wood;
 
@@ -112,9 +112,9 @@ public:
     void visit(Wood* w) override { std::cout << "Chipping wood: drops Logs.\n"; }
 };
 
-// 5. СТРАТЕГИЯ (Strategy) 
-// Суть: позволяет менять алгоритм (способ действия) на лету.
-// В Minecraft: разные способы атаки (меч или лук).
+// 5. Strategy
+// Essence: allows changing the algorithm (method of action) on the fly.
+// In Minecraft: different attack methods (sword or bow).
 class AttackStrategy {
 public:
     virtual void attack() = 0;
@@ -139,12 +139,12 @@ public:
 
 
 int main() {
-    // Команда
+    // Command
     PlaceBlockCommand place("Dirt");
     place.execute();
     place.undo();
 
-    // Состояние
+    // State
     SurvivalMode survival;
     CreativeMode creative;
     Player steve(&survival);
@@ -152,19 +152,19 @@ int main() {
     steve.setMode(&creative);
     steve.handleAction();
 
-    // Наблюдатель
+    // OBSERVER
     Subject playerActions;
     AchievementManager achManager;
     playerActions.addObserver(&achManager);
     playerActions.notify("mine_diamond");
 
-    // Посетитель
+    // VISITOR
     Stone s; Wood w;
     PlayerInteraction interact;
     s.accept(&interact);
     w.accept(&interact);
 
-    // Стратегия (Доп. паттерн)
+    // Strategy
     SwordAttack sword;
     BowAttack bow;
     CombatSystem combat;
