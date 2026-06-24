@@ -1,172 +1,177 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <map>
+#include <algorithm>
 
-// pattern Adapter
-class OldRedstoneSystem {
+// 1. КОМАНДА (Command) 
+// Суть: позволяет превратить действие (например, установку блока) в объект.
+// Это нужно для реализации системы отмены действий (undo).
+class Command {
 public:
-    int getSignal() { return 15; }
+    virtual ~Command() {}
+    virtual void execute() = 0;
+    virtual void undo() = 0;
 };
 
-class NewPowerSystem {
+class PlaceBlockCommand : public Command {
+    std::string blockType;
 public:
-    virtual double getVoltage() = 0;
+    PlaceBlockCommand(std::string type) : blockType(type) {}
+    void execute() override { std::cout << "Block " << blockType << " placed.\n"; }
+    void undo() override { std::cout << "Block " << blockType << " removed (Undo).\n"; }
 };
 
-class RedstoneAdapter : public NewPowerSystem {
-private:
-    OldRedstoneSystem* oldSystem;
+// 2. СОСТОЯНИЕ (State) 
+// Суть: позволяет объекту менять свое поведение в зависимости от внутреннего состояния.
+// В Minecraft это режимы игры (выживание, творческий).
+class GameMode;
+class Player {
+    GameMode* state;
 public:
-    RedstoneAdapter(OldRedstoneSystem* s) : oldSystem(s) {}
-    double getVoltage() override { return (double)oldSystem->getSignal() * 0.8; }
+    Player(GameMode* s);
+    void setMode(GameMode* s);
+    void handleAction();
 };
 
-// pattern Facade
-class FuelSystem {
+class GameMode {
 public:
-    bool hasCoal() { return true; }
+    virtual void doAction(Player* p) = 0;
+    virtual std::string getName() = 0;
 };
 
-class TemperatureSystem {
+class SurvivalMode : public GameMode {
 public:
-    void heatUp() { std::cout << "Furnace is hot" << std::endl; }
+    void doAction(Player* p) override { std::cout << "Player is mining with limited health.\n"; }
+    std::string getName() override { return "Survival"; }
 };
 
-class FurnaceFacade {
-private:
-    FuelSystem fuel;
-    TemperatureSystem temp;
+class CreativeMode : public GameMode {
 public:
-    void smelt() {
-        if (fuel.hasCoal()) {
-            temp.heatUp();
-            std::cout << "Item smelted" << std::endl;
-        }
+    void doAction(Player* p) override { std::cout << "Player is flying and building instantly.\n"; }
+    std::string getName() override { return "Creative"; }
+};
+
+Player::Player(GameMode* s) : state(s) {}
+void Player::setMode(GameMode* s) { state = s; }
+void Player::handleAction() { state->doAction(this); }
+
+// 3. НАБЛЮДАТЕЛЬ (Observer) 
+// Суть: один объект (субъект) уведомляет другие объекты (наблюдатели) об изменениях.
+// В Minecraft это система достижений: когда игрок что-то делает, менеджер достижений об этом узнает.
+class Observer {
+public:
+    virtual void update(std::string action) = 0;
+};
+
+class AchievementManager : public Observer {
+public:
+    void update(std::string action) override {
+        if (action == "mine_diamond") std::cout << "Achievement Unlocked: DIAMONDS!\n";
     }
 };
 
-// pattern Proxy
-class IChest {
+class Subject {
+    std::vector<Observer*> observers;
 public:
-    virtual void open() = 0;
-};
-
-class RealChest : public IChest {
-public:
-    void open() override { std::cout << "Chest opened" << std::endl; }
-};
-
-class ChestProxy : public IChest {
-private:
-    RealChest* chest;
-    bool isOp;
-public:
-    ChestProxy(bool op) : isOp(op) { chest = new RealChest(); }
-    void open() override {
-        if (isOp) chest->open();
-        else std::cout << "Access denied" << std::endl;
-    }
-    ~ChestProxy() { delete chest; }
-};
-
-// pattern Composite
-class WorldObject {
-public:
-    virtual void render() = 0;
-};
-
-class Block : public WorldObject {
-private:
-    std::string name;
-public:
-    Block(std::string n) : name(n) {}
-    void render() override { std::cout << name << " "; }
-};
-
-class Structure : public WorldObject {
-private:
-    std::vector<WorldObject*> objects;
-public:
-    void add(WorldObject* obj) { objects.push_back(obj); }
-    void render() override {
-        for (auto obj : objects) obj->render();
+    void addObserver(Observer* o) { observers.push_back(o); }
+    void notify(std::string action) {
+        for (auto o : observers) o->update(action);
     }
 };
 
-// pattern Bridge
-class Material {
+// 4. ПОСЕТИТЕЛЬ (Visitor) 
+// Суть: позволяет добавлять новые операции к классам, не меняя их код.
+// Например, игрок (посетитель) взаимодействует с разными блоками.
+class Stone;
+class Wood;
+
+class BlockVisitor {
 public:
-    virtual std::string getProp() = 0;
+    virtual void visit(Stone* s) = 0;
+    virtual void visit(Wood* w) = 0;
 };
 
-class Diamond : public Material {
-    std::string getProp() override { return "Diamond"; }
+class Block {
+public:
+    virtual void accept(BlockVisitor* v) = 0;
 };
 
-class Tool {
-protected:
-    Material* mat;
+class Stone : public Block {
 public:
-    Tool(Material* m) : mat(m) {}
-    virtual void info() = 0;
+    void accept(BlockVisitor* v) override { v->visit(this); }
 };
 
-class Pickaxe : public Tool {
+class Wood : public Block {
 public:
-    Pickaxe(Material* m) : Tool(m) {}
-    void info() override { std::cout << mat->getProp() << " Pickaxe" << std::endl; }
+    void accept(BlockVisitor* v) override { v->visit(this); }
 };
 
-// pattern Flyweight
-class BlockType {
+class PlayerInteraction : public BlockVisitor {
 public:
-    std::string texture;
-    BlockType(std::string t) : texture(t) {}
+    void visit(Stone* s) override { std::cout << "Mining stone: drops Cobblestone.\n"; }
+    void visit(Wood* w) override { std::cout << "Chipping wood: drops Logs.\n"; }
 };
 
-class BlockFactory {
-private:
-    std::map<std::string, BlockType*> types;
+// 5. СТРАТЕГИЯ (Strategy) 
+// Суть: позволяет менять алгоритм (способ действия) на лету.
+// В Minecraft: разные способы атаки (меч или лук).
+class AttackStrategy {
 public:
-    BlockType* getType(std::string t) {
-        if (types.find(t) == types.end()) types[t] = new BlockType(t);
-        return types[t];
-    }
+    virtual void attack() = 0;
 };
+
+class SwordAttack : public AttackStrategy {
+public:
+    void attack() override { std::cout << "Attacking with Sword (Melee).\n"; }
+};
+
+class BowAttack : public AttackStrategy {
+public:
+    void attack() override { std::cout << "Attacking with Bow (Ranged).\n"; }
+};
+
+class CombatSystem {
+    AttackStrategy* strategy;
+public:
+    void setStrategy(AttackStrategy* s) { strategy = s; }
+    void performAttack() { strategy->attack(); }
+};
+
 
 int main() {
-    // Adapter
-    OldRedstoneSystem oldS;
-    RedstoneAdapter adapter(&oldS);
-    std::cout << "Voltage: " << adapter.getVoltage() << std::endl;
+    // Команда
+    PlaceBlockCommand place("Dirt");
+    place.execute();
+    place.undo();
 
-    // Facade
-    FurnaceFacade furnace;
-    furnace.smelt();
+    // Состояние
+    SurvivalMode survival;
+    CreativeMode creative;
+    Player steve(&survival);
+    steve.handleAction();
+    steve.setMode(&creative);
+    steve.handleAction();
 
-    // Proxy
-    ChestProxy badProxy(false);
-    badProxy.open();
-    ChestProxy goodProxy(true);
-    goodProxy.open();
+    // Наблюдатель
+    Subject playerActions;
+    AchievementManager achManager;
+    playerActions.addObserver(&achManager);
+    playerActions.notify("mine_diamond");
 
-    // Composite
-    Structure house;
-    house.add(new Block("Wall"));
-    house.add(new Block("Door"));
-    house.render();
-    std::cout << std::endl;
+    // Посетитель
+    Stone s; Wood w;
+    PlayerInteraction interact;
+    s.accept(&interact);
+    w.accept(&interact);
 
-    // Bridge
-    Diamond dia;
-    Pickaxe pick(&dia);
-    pick.info();
-
-    // Flyweight
-    BlockFactory factory;
-    BlockType* t1 = factory.getType("GrassTexture");
-    std::cout << "Texture: " << t1->texture << std::endl;
+    // Стратегия (Доп. паттерн)
+    SwordAttack sword;
+    BowAttack bow;
+    CombatSystem combat;
+    combat.setStrategy(&sword);
+    combat.performAttack();
+    combat.setStrategy(&bow);
+    combat.performAttack();
 
     return 0;
 }
