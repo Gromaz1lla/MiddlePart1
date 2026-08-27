@@ -1,115 +1,103 @@
 #include <iostream>
-#include <map>
+#include <vector>
+#include <array>
 #include <unordered_map>
-#include <set>
 #include <algorithm>
+#include <iterator>
 #include <string>
 
-// 1. find для std::map
-// 
-// у map есть свой собственный метод find() (он быстрее, чем
-// std::find, потому что использует внутреннее дерево, а не
-// линейный перебор), но задание именно про алгоритм из <algorithm>,
-// поэтому покажем оба варианта и сравним
-void demo_find_map() {
-    std::cout << "=== find for std::map ===" << std::endl;
+// std::copy для указателей копирует просто адреса, а не сами данные -
+// покажем это на примере, а потом сделаем нормальную глубокую копию
+void demo_deep_copy() {
+    std::cout << "=== copy with deep copying ===" << std::endl;
 
-    // список студентов и их баллов за практику
-    std::map<std::string, int> scores = {
-        {"Ivanov", 85},
-        {"Petrov", 92},
-        {"Sidorov", 67},
-        {"Kuznetsov", 78}
+    std::vector<int*> original;
+    original.push_back(new int(10));
+    original.push_back(new int(20));
+    original.push_back(new int(30));
+
+    // тут просто копируются адреса
+    std::vector<int*> shallow_copy(original.size());
+    std::copy(original.begin(), original.end(), shallow_copy.begin());
+
+    *original[0] = 999;
+
+    std::cout << "after shallow copy and changing original[0]:" << std::endl;
+    std::cout << "original[0] = " << *original[0] << std::endl;
+    std::cout << "shallow_copy[0] = " << *shallow_copy[0]
+        << "  (same address, so it changed too)" << std::endl;
+
+    // а тут через transform выделяем новую память под каждое значение -
+    // это и есть глубокая копия
+    std::vector<int*> deep_copy(original.size());
+    std::transform(original.begin(), original.end(), deep_copy.begin(),
+        [](int* p) {
+            return new int(*p);
+        });
+
+    *original[0] = -1;
+
+    std::cout << "\nafter deep copy and changing original[0] again:" << std::endl;
+    std::cout << "original[0] = " << *original[0] << std::endl;
+    std::cout << "deep_copy[0] = " << *deep_copy[0]
+        << "  (didn't change, separate memory)" << std::endl;
+
+    // shallow_copy отдельно чистить не нужно - там те же адреса, что в original
+    for (int* p : original) delete p;
+    for (int* p : deep_copy) delete p;
+
+    std::cout << std::endl;
+}
+
+// у unordered_map нет индексов как у vector, поэтому просто
+// std::copy(src.begin(), src.end(), dst.begin()) не сработает -
+// нужен inserter, чтобы элементы вставлялись через insert()
+void demo_copy_unordered_map() {
+    std::cout << "=== copy for std::unordered_map ===" << std::endl;
+
+    std::unordered_map<std::string, int> source = {
+        {"apple", 3},
+        {"banana", 5},
+        {"cherry", 7}
     };
 
-    // std::find из <algorithm> проходит по всем парам {ключ, значение}
-    // по очереди, поэтому его нужно сравнивать с целой парой, а не
-    // просто с ключом. Тип элемента у map - это pair<const Key, Value>,
-    // поэтому и сравнивать нужно именно с таким типом (через make_pair
-    // тип получается немного другим, поэтому создаём пару напрямую)
-    std::pair<const std::string, int> target("Sidorov", 67);
-    auto it = std::find(scores.begin(), scores.end(), target);
+    std::unordered_map<std::string, int> destination;
 
-    if (it != scores.end()) {
-        std::cout << "std::find result: " << it->first << " -> " << it->second << std::endl;
-    }
-    else {
-        std::cout << "std::find found nothing" << std::endl;
-    }
+    std::copy(source.begin(), source.end(), std::inserter(destination, destination.begin()));
 
-    auto it2 = scores.find("Petrov");
-    if (it2 != scores.end()) {
-        std::cout << "map::find result: " << it2->first << " -> " << it2->second << std::endl;
+    std::cout << "destination contents after copy:" << std::endl;
+    for (const auto& item : destination) {
+        std::cout << item.first << " -> " << item.second << std::endl;
     }
 
     std::cout << std::endl;
 }
 
-//
-// 2. count_if для std::unordered_map
-//
-void demo_count_if_unordered_map() {
-    std::cout << "=== count_if for std::unordered_map ===" << std::endl;
+void demo_fill() {
+    std::cout << "=== fill for an array ===" << std::endl;
 
-    // остатки товаров на складе: название -> количество
-    std::unordered_map<std::string, int> stock = {
-        {"apples", 15},
-        {"bananas", 0},
-        {"oranges", 8},
-        {"pears", 0},
-        {"grapes", 23}
-    };
+    int plain_array[5];
+    std::fill(std::begin(plain_array), std::end(plain_array), 7);
 
-    // считаем, сколько товаров закончилось на складе (количество == 0)
-    int out_of_stock = std::count_if(stock.begin(), stock.end(),
-        [](const std::pair<const std::string, int>& item) {
-            return item.second == 0;
-        });
-
-    std::cout << "items out of stock: " << out_of_stock << std::endl;
-
-    // и второй пример - сколько товаров больше 10 штук
-    int well_stocked = std::count_if(stock.begin(), stock.end(),
-        [](const auto& item) {
-            return item.second > 10;
-        });
-
-    std::cout << "items with more than 10 in stock: " << well_stocked << std::endl;
-
-    std::cout << std::endl;
-}
-
-//
-// 3. for_each для std::set
-//
-void demo_for_each_set() {
-    std::cout << "=== for_each for std::set ===" << std::endl;
-
-    // set хранит только уникальные значения, автоматически отсортированные
-    std::set<int> ids = { 42, 7, 15, 23, 7, 42, 1 };
-
-    std::cout << "all elements: ";
-    std::for_each(ids.begin(), ids.end(), [](int id) {
-        std::cout << id << " ";
-        });
+    std::cout << "plain_array after fill(7): ";
+    for (int x : plain_array) std::cout << x << " ";
     std::cout << std::endl;
 
-    // for_each можно использовать не только для печати, но и чтобы
-    // что-то накопить снаружи лямбды (через захват по ссылке)
-    int sum = 0;
-    std::for_each(ids.begin(), ids.end(), [&sum](int id) {
-        sum += id;
-        });
+    // std::array работает так же, только с ним безопаснее
+    std::array<std::string, 3> names;
+    std::fill(names.begin(), names.end(), "unknown");
 
-    std::cout << "sum of all elements: " << sum << std::endl;
+    std::cout << "names after fill(\"unknown\"): ";
+    for (const auto& name : names) std::cout << name << " ";
+    std::cout << std::endl;
 
     std::cout << std::endl;
 }
 
 int main() {
-    demo_find_map();
-    demo_count_if_unordered_map();
-    demo_for_each_set();
+    demo_deep_copy();
+    demo_copy_unordered_map();
+    demo_fill();
 
     return 0;
 }
