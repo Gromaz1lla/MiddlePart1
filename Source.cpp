@@ -1,103 +1,76 @@
-#include <iostream>
-#include <vector>
-#include <array>
-#include <unordered_map>
+п»ї#include <iostream>
+#include <list>
 #include <algorithm>
-#include <iterator>
-#include <string>
 
-// std::copy для указателей копирует просто адреса, а не сами данные -
-// покажем это на примере, а потом сделаем нормальную глубокую копию
-void demo_deep_copy() {
-    std::cout << "=== copy with deep copying ===" << std::endl;
+void print_list(const std::list<int>& lst, const std::string& label) {
+    std::cout << label << ": ";
+    for (int x : lst) std::cout << x << " ";
+    std::cout << std::endl;
+}
 
-    std::vector<int*> original;
-    original.push_back(new int(10));
-    original.push_back(new int(20));
-    original.push_back(new int(30));
+// generate Р·Р°РїРѕР»РЅСЏРµС‚ СЃРїРёСЃРѕРє Р·РЅР°С‡РµРЅРёСЏРјРё, РєРѕС‚РѕСЂС‹Рµ РІРѕР·РІСЂР°С‰Р°РµС‚ РїРµСЂРµРґР°РЅРЅР°СЏ
+// С„СѓРЅРєС†РёСЏ - РІС‹Р·С‹РІР°РµС‚СЃСЏ РїРѕ СЂР°Р·Сѓ РЅР° РєР°Р¶РґС‹Р№ СЌР»РµРјРµРЅС‚
+void demo_generate() {
+    std::cout << "=== generate ===" << std::endl;
 
-    // тут просто копируются адреса
-    std::vector<int*> shallow_copy(original.size());
-    std::copy(original.begin(), original.end(), shallow_copy.begin());
+    std::list<int> numbers(10);
 
-    *original[0] = 999;
-
-    std::cout << "after shallow copy and changing original[0]:" << std::endl;
-    std::cout << "original[0] = " << *original[0] << std::endl;
-    std::cout << "shallow_copy[0] = " << *shallow_copy[0]
-        << "  (same address, so it changed too)" << std::endl;
-
-    // а тут через transform выделяем новую память под каждое значение -
-    // это и есть глубокая копия
-    std::vector<int*> deep_copy(original.size());
-    std::transform(original.begin(), original.end(), deep_copy.begin(),
-        [](int* p) {
-            return new int(*p);
+    // СЃС‡С‘С‚С‡РёРє СЃРЅР°СЂСѓР¶Рё Р»СЏРјР±РґС‹, С‡С‚РѕР±С‹ РєР°Р¶РґС‹Р№ СЂР°Р· РІРѕР·РІСЂР°С‰Р°С‚СЊ СЃР»РµРґСѓСЋС‰РµРµ С‡РёСЃР»Рѕ
+    int counter = 1;
+    std::generate(numbers.begin(), numbers.end(), [&counter]() {
+        return counter++;
         });
 
-    *original[0] = -1;
-
-    std::cout << "\nafter deep copy and changing original[0] again:" << std::endl;
-    std::cout << "original[0] = " << *original[0] << std::endl;
-    std::cout << "deep_copy[0] = " << *deep_copy[0]
-        << "  (didn't change, separate memory)" << std::endl;
-
-    // shallow_copy отдельно чистить не нужно - там те же адреса, что в original
-    for (int* p : original) delete p;
-    for (int* p : deep_copy) delete p;
-
+    print_list(numbers, "generated");
     std::cout << std::endl;
 }
 
-// у unordered_map нет индексов как у vector, поэтому просто
-// std::copy(src.begin(), src.end(), dst.begin()) не сработает -
-// нужен inserter, чтобы элементы вставлялись через insert()
-void demo_copy_unordered_map() {
-    std::cout << "=== copy for std::unordered_map ===" << std::endl;
+// transform РїСЂРёРјРµРЅСЏРµС‚ С„СѓРЅРєС†РёСЋ Рє РєР°Р¶РґРѕРјСѓ СЌР»РµРјРµРЅС‚Сѓ Рё РєР»Р°РґС‘С‚ СЂРµР·СѓР»СЊС‚Р°С‚
+// РѕР±СЂР°С‚РЅРѕ РІ С‚РѕС‚ Р¶Рµ СЃРїРёСЃРѕРє (РµСЃР»Рё РїРµСЂРµРґР°С‚СЊ begin РёСЃС…РѕРґРЅРѕРіРѕ РєР°Рє РІС‹С…РѕРґРЅРѕР№
+// РёС‚РµСЂР°С‚РѕСЂ)
+void demo_transform() {
+    std::cout << "=== transform ===" << std::endl;
 
-    std::unordered_map<std::string, int> source = {
-        {"apple", 3},
-        {"banana", 5},
-        {"cherry", 7}
-    };
+    std::list<int> numbers = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+    print_list(numbers, "before");
 
-    std::unordered_map<std::string, int> destination;
+    std::transform(numbers.begin(), numbers.end(), numbers.begin(), [](int x) {
+        return x * x;
+        });
 
-    std::copy(source.begin(), source.end(), std::inserter(destination, destination.begin()));
-
-    std::cout << "destination contents after copy:" << std::endl;
-    for (const auto& item : destination) {
-        std::cout << item.first << " -> " << item.second << std::endl;
-    }
-
+    print_list(numbers, "after (squared)");
     std::cout << std::endl;
 }
 
-void demo_fill() {
-    std::cout << "=== fill for an array ===" << std::endl;
+// remove_if РЅРµ СѓРґР°Р»СЏРµС‚ СЌР»РµРјРµРЅС‚С‹ РїРѕ-РЅР°СЃС‚РѕСЏС‰РµРјСѓ - РѕРЅ РїСЂРѕСЃС‚Рѕ РїРµСЂРµРјРµС‰Р°РµС‚
+// РЅСѓР¶РЅС‹Рµ СЌР»РµРјРµРЅС‚С‹ РІ РЅР°С‡Р°Р»Рѕ СЃРїРёСЃРєР° Рё РІРѕР·РІСЂР°С‰Р°РµС‚ РёС‚РµСЂР°С‚РѕСЂ РЅР° РЅРѕРІСѓСЋ
+// Р»РѕРіРёС‡РµСЃРєСѓСЋ РіСЂР°РЅРёС†Сѓ, Р° СЂР°Р·РјРµСЂ РєРѕРЅС‚РµР№РЅРµСЂР° РѕСЃС‚Р°С‘С‚СЃСЏ РїСЂРµР¶РЅРёРј.
+// С‡С‚РѕР±С‹ СЂРµР°Р»СЊРЅРѕ СѓР±СЂР°С‚СЊ С…РІРѕСЃС‚ - РЅСѓР¶РЅРѕ РµС‰С‘ РІС‹Р·РІР°С‚СЊ erase (erase-remove idiom)
+void demo_remove() {
+    std::cout << "=== remove (filter > 3) ===" << std::endl;
 
-    int plain_array[5];
-    std::fill(std::begin(plain_array), std::end(plain_array), 7);
+    std::list<int> numbers = { 5, 2, 8, 1, 3, 9, 4, 3, 7, 6 };
+    print_list(numbers, "before");
 
-    std::cout << "plain_array after fill(7): ";
-    for (int x : plain_array) std::cout << x << " ";
-    std::cout << std::endl;
+    auto new_end = std::remove_if(numbers.begin(), numbers.end(), [](int x) {
+        return x > 3;
+        });
 
-    // std::array работает так же, только с ним безопаснее
-    std::array<std::string, 3> names;
-    std::fill(names.begin(), names.end(), "unknown");
+    std::cout << "size right after remove_if: " << numbers.size()
+        << " (size hasn't changed yet)" << std::endl;
 
-    std::cout << "names after fill(\"unknown\"): ";
-    for (const auto& name : names) std::cout << name << " ";
-    std::cout << std::endl;
+    numbers.erase(new_end, numbers.end());
+
+    print_list(numbers, "after erase (only <= 3 left)");
+    std::cout << "size after erase: " << numbers.size() << std::endl;
 
     std::cout << std::endl;
 }
 
 int main() {
-    demo_deep_copy();
-    demo_copy_unordered_map();
-    demo_fill();
+    demo_generate();
+    demo_transform();
+    demo_remove();
 
     return 0;
 }
